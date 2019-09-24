@@ -14,6 +14,7 @@ typedef struct _host_worker_thread_context
     volatile oe_call_host_function_args_t* call_arg;
     volatile bool is_stopping;
     oe_enclave_t* enclave;
+    uint64_t wait_count;
 } oe_host_worker_context_t;
 
 typedef struct _oe_switchless_call_manager

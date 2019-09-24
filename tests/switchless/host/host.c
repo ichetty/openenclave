@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
 
 #ifdef OE_CONTEXT_SWITCHLESS_EXPERIMENTAL_FEATURE
     // Enable switchless and configure host worker number
-    oe_enclave_config_context_switchless_t config = {2, 0};
+    oe_enclave_config_context_switchless_t config = {4, 0};
     oe_enclave_config_t configs[] = {{
         .config_type = OE_ENCLAVE_CONFIG_CONTEXT_SWITCHLESS,
         .u.context_switchless_config = &config,
@@ -74,24 +74,26 @@ int main(int argc, const char* argv[])
     int return_val;
 
     double switchless_microseconds = 0;
+    double regular_microseconds = 0;
     struct timespec start, end;
 
     // Increase this number to have a meaningful performance measurement
-    int repeats = 10;
+    int repeats = 1000000;
 
     clock_gettime(CLOCK_REALTIME, &start);
     OE_TEST(
         enc_echo_switchless(
             enclave, &return_val, "Hello World", out, repeats) == OE_OK);
+    OE_TEST(return_val == 0);
     clock_gettime(CLOCK_REALTIME, &end);
     switchless_microseconds += (double)(end.tv_sec - start.tv_sec) * 1000000.0 +
                                (double)(end.tv_nsec - start.tv_nsec) / 1000.0;
 
-    double regular_microseconds = 0;
     clock_gettime(CLOCK_REALTIME, &start);
     OE_TEST(
         enc_echo_regular(enclave, &return_val, "Hello World", out, repeats) ==
         OE_OK);
+    OE_TEST(return_val == 0);
     clock_gettime(CLOCK_REALTIME, &end);
     regular_microseconds += (double)(end.tv_sec - start.tv_sec) * 1000000.0 +
                             (double)(end.tv_nsec - start.tv_nsec) / 1000.0;

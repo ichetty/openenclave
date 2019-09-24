@@ -13,5 +13,8 @@ add_custom_target(switchless_host_gen DEPENDS switchless_u.h switchless_u.c swit
 
 add_executable(switchless_host host.c switchless_u.c)
 
+target_compile_definitions(switchless_host PRIVATE
+  OE_CONTEXT_SWITCHLESS_EXPERIMENTAL_FEATURE)
+
 target_include_directories(switchless_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(switchless_host oehostapp)

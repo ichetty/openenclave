@@ -5,10 +5,22 @@
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/raise.h>
 #include <openenclave/internal/switchless.h>
+#include <unistd.h>
 #include "../calls.h"
 #include "../hostthread.h"
 #include "../ocalls.h"
 #include "enclave.h"
+
+/**
+ * Number of iterations an ocall worker thread would spin before going to sleep
+ */
+#define OCALL_WORKER_WAIT_COUNT_THRESHOLD (512U)
+
+/**
+ * Number of microseconds an ocall worker thread would sleep before waking up an
+ * going back to spinning for messages
+ */
+#define OCALL_WORKER_SLEEP_MICROSECONDS (1)
 
 /*
 ** The thread function that handles switchless ocalls
@@ -26,6 +38,16 @@ static void* _switchless_ocall_worker(void* arg)
             context->call_arg = NULL;
             oe_handle_call_host_function(
                 (uint64_t)local_call_arg, context->enclave);
+            context->wait_count = 0;
+        }
+        else
+        {
+            // asm volatile("pause");
+            if (++context->wait_count == OCALL_WORKER_WAIT_COUNT_THRESHOLD)
+            {
+                context->wait_count = 0;
+                usleep(OCALL_WORKER_SLEEP_MICROSECONDS);
+            }
         }
     }
     return NULL;
@@ -94,6 +116,7 @@ oe_result_t oe_start_switchless_manager(
     // Start the worker threads, and assign each one a private context.
     for (size_t i = 0; i < num_host_workers; i++)
     {
+        printf("creating thread %d\n", (int)i);
         manager->host_worker_contexts[i].enclave = enclave;
         if (oe_thread_create(
                 &manager->host_worker_threads[i],

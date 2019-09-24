@@ -81,4 +81,4 @@ OE_SET_ENCLAVE_SGX(
     true, /* AllowDebug */
     1024, /* HeapPageCount */
     1024, /* StackPageCount */
-    2);   /* TCSCount */
+    8);   /* TCSCount */
