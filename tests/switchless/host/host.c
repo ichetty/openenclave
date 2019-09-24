@@ -13,27 +13,70 @@
 #include "../../../host/strings.h"
 #include "switchless_u.h"
 
+#include <unistd.h>
+
 #define NUM_HOST_THREADS 16
 #define STRING_LEN 100
 
+uint64_t g = 0;
+
 int host_echo_switchless(char* in, char* out, char* str1, char str2[STRING_LEN])
 {
-    OE_TEST(strcmp(str1, "host string parameter") == 0);
+    /*   OE_TEST(strcmp(str1, "host string parameter") == 0);
     OE_TEST(strcmp(str2, "host string on stack") == 0);
 
     strcpy(out, in);
+    for(uint64_t l=0; l < 1000; ++l)
+    {
+    g = (g + 1) * l;
+    }
+//    usleep(1);
 
+
+//    nanosleep(1, NULL); */
+    OE_UNUSED(in);
+    OE_UNUSED(out);
+    OE_UNUSED(str1);
+    OE_UNUSED(str2);
     return 0;
 }
 
 int host_echo_regular(char* in, char* out, char* str1, char str2[STRING_LEN])
 {
-    OE_TEST(strcmp(str1, "host string parameter") == 0);
-    OE_TEST(strcmp(str2, "host string on stack") == 0);
+    /*    OE_TEST(strcmp(str1, "host string parameter") == 0);
+        OE_TEST(strcmp(str2, "host string on stack") == 0);
 
-    strcpy(out, in);
+        strcpy(out, in);
+         for(uint64_t l=0; l < 1000; ++l)
+        {
+        g = (g + 1) * l;
+        }
 
+        //usleep(1);*/
+
+    OE_UNUSED(in);
+    OE_UNUSED(out);
+    OE_UNUSED(str1);
+    OE_UNUSED(str2);
     return 0;
+}
+
+void* create_enc_thread(void* e)
+{
+    oe_enclave_t* enclave = (oe_enclave_t*)e;
+
+    char out[STRING_LEN];
+    int return_val;
+
+    // Increase this number to have a meaningful performance measurement
+    int repeats = 100000;
+
+    OE_TEST(
+        enc_echo_switchless(
+            enclave, &return_val, "Hello World", out, repeats) == OE_OK);
+    OE_TEST(return_val == 0);
+
+    return NULL;
 }
 
 int main(int argc, const char* argv[])
@@ -51,7 +94,7 @@ int main(int argc, const char* argv[])
 
 #ifdef OE_CONTEXT_SWITCHLESS_EXPERIMENTAL_FEATURE
     // Enable switchless and configure host worker number
-    oe_enclave_config_context_switchless_t config = {4, 0};
+    oe_enclave_config_context_switchless_t config = {2, 0};
     oe_enclave_config_t configs[] = {{
         .config_type = OE_ENCLAVE_CONFIG_CONTEXT_SWITCHLESS,
         .u.context_switchless_config = &config,
@@ -78,7 +121,14 @@ int main(int argc, const char* argv[])
     struct timespec start, end;
 
     // Increase this number to have a meaningful performance measurement
-    int repeats = 1000000;
+    int repeats = 100000;
+
+    // pthread_t tid = 0;
+    // pthread_create(&tid, NULL, create_enc_thread, enclave);
+    // if (tid)
+    // {
+    //	printf("another thread created");
+    //  }
 
     clock_gettime(CLOCK_REALTIME, &start);
     OE_TEST(
@@ -97,6 +147,8 @@ int main(int argc, const char* argv[])
     clock_gettime(CLOCK_REALTIME, &end);
     regular_microseconds += (double)(end.tv_sec - start.tv_sec) * 1000000.0 +
                             (double)(end.tv_nsec - start.tv_nsec) / 1000.0;
+
+    // pthread_join(tid, NULL);
 
     result = oe_terminate_enclave(enclave);
     OE_TEST(result == OE_OK);

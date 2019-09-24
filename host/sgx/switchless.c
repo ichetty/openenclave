@@ -38,6 +38,8 @@ static void* _switchless_ocall_worker(void* arg)
             context->call_arg = NULL;
             oe_handle_call_host_function(
                 (uint64_t)local_call_arg, context->enclave);
+
+            context->total_wait_count += context->wait_count;
             context->wait_count = 0;
         }
         else
@@ -45,6 +47,7 @@ static void* _switchless_ocall_worker(void* arg)
             // asm volatile("pause");
             if (++context->wait_count == OCALL_WORKER_WAIT_COUNT_THRESHOLD)
             {
+                context->total_wait_count += context->wait_count;
                 context->wait_count = 0;
                 usleep(OCALL_WORKER_SLEEP_MICROSECONDS);
             }
@@ -59,6 +62,11 @@ static oe_result_t oe_stop_worker_threads(oe_switchless_call_manager_t* manager)
     for (size_t i = 0; i < manager->num_host_workers; i++)
     {
         manager->host_worker_contexts[i].is_stopping = true;
+        printf(
+            "thread %d waited for %ld times\n",
+            i,
+            manager->host_worker_contexts[i].total_wait_count /
+                OCALL_WORKER_WAIT_COUNT_THRESHOLD);
     }
 
     for (size_t i = 0; i < manager->num_host_workers; i++)
@@ -125,6 +133,16 @@ oe_result_t oe_start_switchless_manager(
         {
             oe_stop_worker_threads(manager);
             OE_RAISE(OE_THREAD_CREATE_ERROR);
+        }
+
+        if (i == 0)
+        {
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(0, &cpuset);
+
+            pthread_setaffinity_np(
+                manager->host_worker_threads[i], sizeof(cpu_set_t), &cpuset);
         }
     }
 
